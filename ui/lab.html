@@ -1,375 +1,4 @@
-import streamlit as st # type: ignore
-import streamlit.components.v1 as components  # type: ignore
-import html
-
-def st_iframe(html_content, height, scrolling=True):
-    srcdoc = html.escape(html_content, quote=True).replace('\n', '&#10;')
-    scroll_attr = 'yes' if scrolling else 'no'
-    st.markdown(f'<iframe srcdoc="{srcdoc}" sandbox="allow-scripts allow-top-navigation allow-same-origin allow-popups allow-popups-to-escape-sandbox" width="100%" height="{height}" style="border:none; padding:0; margin:0;" scrolling="{scroll_attr}"></iframe>', unsafe_allow_html=True)
-
-# ── Page config ───────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Codexa — AI Coding Tutor", page_icon="⚡", layout="wide")
-
-# ── Read page from URL query param (reliable cross-iframe navigation) ─────────
-import os, re
-os.makedirs("ui", exist_ok=True)
-if not os.path.exists("ui/lab.html"):
-    with open(__file__, "r", encoding="utf-8") as _f_in:
-        _c = _f_in.read()
-    _mh = re.search(r'HOME_HTML = """(<!DOCTYPE html>.*?</html>)"""', _c, re.DOTALL)
-    if _mh: open("ui/home.html", "w", encoding="utf-8").write(_mh.group(1))
-    _ms = re.search(r'SETUP_HTML = """(<!DOCTYPE html>.*?</html>)"""', _c, re.DOTALL)
-    if _ms: open("ui/setup.html", "w", encoding="utf-8").write(_ms.group(1))
-    _ml = re.search(r'LAB_HTML = """(<!DOCTYPE html>.*?</html>)"""', _c, re.DOTALL)
-    if _ml: open("ui/lab.html", "w", encoding="utf-8").write(_ml.group(1))
-
-params = st.query_params
-current_page = params.get("page", "start")
-
-# ── Global CSS: hide ALL Streamlit chrome, kill every scrollbar ───────────────
-st.markdown("""
-<style>
-[data-testid="stHeader"],
-[data-testid="stToolbar"],
-[data-testid="stDecoration"],
-[data-testid="stStatusWidget"],
-footer, #MainMenu { display: none !important; }
-
-/* Zero out all padding/margin so the iframe fills the viewport */
-[data-testid="stAppViewContainer"] > .main,
-[data-testid="stAppViewContainer"],
-[data-testid="stApp"],
-.block-container {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: 100% !important;
-}
-
-/* Kill the outer Streamlit page scrollbar — the iframe manages its own scroll */
-html, body {
-    overflow: hidden !important;
-    height: 100% !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# HOME PAGE
-# ═════════════════════════════════════════════════════════════════════════════
-if current_page == "start":
-
-    # The iframe navigates by changing window.parent.location.href
-    # which updates the query param and triggers a Streamlit rerun
-    HOME_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-div,span,main,nav,ul,li,a,button,h1,p,.pill,.code-chip,.stat,.feat,.nav-logo,.nav-badge{box-sizing:border-box;margin:0;padding:0}
-html,body{
-  background:#050508;color:#E8E8F0;
-  font-family:'DM Sans',sans-serif;
-  height:100%;overflow-y:auto;overflow-x:hidden;
-}
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
-
-body::before{content:'';position:fixed;inset:0;
-  background:
-    radial-gradient(ellipse 70% 60% at 15% 10%,rgba(82,45,240,.22) 0,transparent 65%),
-    radial-gradient(ellipse 55% 45% at 85% 85%,rgba(99,220,150,.12) 0,transparent 65%),
-    radial-gradient(ellipse 40% 55% at 65% 5%,rgba(56,189,248,.09) 0,transparent 65%);
-  pointer-events:none;z-index:0}
-
-nav{position:fixed;top:0;left:0;right:0;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:16px 48px;
-  background:rgba(5,5,8,.75);backdrop-filter:blur(24px);
-  border-bottom:1px solid rgba(255,255,255,.06)}
-.nav-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.25rem;
-  letter-spacing:-.03em;
-  background:linear-gradient(135deg,#fff 0%,#7c3aed 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  display:flex;align-items:center;gap:6px}
-.nav-logo-dot{display:inline-block;width:8px;height:8px;border-radius:50%;
-  background:linear-gradient(135deg,#7c3aed,#34d399);margin-bottom:1px}
-.nav-links{display:flex;gap:28px;list-style:none}
-.nav-links a{color:rgba(232,232,240,.4);text-decoration:none;font-size:.85rem;transition:color .2s}
-.nav-links a:hover{color:#E8E8F0}
-.nav-badge{font-size:.7rem;font-weight:500;padding:5px 14px;border-radius:99px;
-  border:1px solid rgba(52,211,153,.3);color:#34d399;background:rgba(52,211,153,.08);letter-spacing:.05em}
-
-main{position:relative;z-index:1;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:100vh;padding:120px 24px 80px}
-
-.pill{display:inline-flex;align-items:center;gap:8px;
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-  border-radius:99px;padding:5px 16px 5px 7px;
-  font-size:.76rem;color:rgba(232,232,240,.65);
-  margin-bottom:44px;cursor:pointer;text-decoration:none;
-  transition:border-color .2s,background .2s;animation:fadeUp .6s ease both}
-.pill:hover{background:rgba(255,255,255,.08);border-color:rgba(52,211,153,.3)}
-.pill-dot{width:22px;height:22px;border-radius:50%;
-  background:linear-gradient(135deg,#7c3aed,#34d399);
-  display:flex;align-items:center;justify-content:center;
-  font-size:.65rem;color:#fff;flex-shrink:0;font-family:'JetBrains Mono',monospace}
-.pill-arrow{color:rgba(232,232,240,.35);margin-left:2px;transition:transform .2s}
-.pill:hover .pill-arrow{transform:translateX(3px)}
-
-.hero{text-align:center;max-width:820px;margin-bottom:48px;animation:fadeUp .7s ease .1s both}
-.eyebrow{font-family:'JetBrains Mono',monospace;font-size:.72rem;letter-spacing:.15em;
-  color:#34d399;margin-bottom:20px;opacity:.85}
-.eyebrow span{color:rgba(232,232,240,.3)}
-h1{font-family:'Syne',sans-serif;
-  font-size:clamp(2.8rem,6vw,5rem);font-weight:800;
-  line-height:1.03;letter-spacing:-.035em;margin-bottom:24px;color:#fff}
-h1 .accent{background:linear-gradient(135deg,#7c3aed 0%,#34d399 60%,#38bdf8 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.subtitle{font-size:1.05rem;font-weight:300;color:rgba(232,232,240,.45);
-  line-height:1.75;max-width:500px;margin:0 auto}
-
-.code-chip{font-family:'JetBrains Mono',monospace;font-size:.78rem;
-  background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);
-  border-radius:8px;padding:14px 20px;color:rgba(232,232,240,.55);
-  margin-bottom:40px;line-height:1.6;max-width:420px;text-align:left;
-  animation:fadeUp .7s ease .25s both}
-.kw{color:#c084fc}.fn{color:#34d399}.str{color:#38bdf8}.cm{color:rgba(232,232,240,.25)}
-.cursor{display:inline-block;width:2px;height:.9em;background:#34d399;
-  margin-left:2px;animation:blink 1s step-end infinite;vertical-align:text-bottom}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-
-.cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
-  margin-bottom:72px;animation:fadeUp .7s ease .2s both}
-.btn-primary{font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:500;
-  padding:0 28px;height:48px;
-  background:linear-gradient(135deg,#7c3aed,#5b21b6);
-  color:#fff;border:none;border-radius:10px;cursor:pointer;
-  box-shadow:0 0 30px rgba(124,58,237,.38),0 1px 3px rgba(0,0,0,.4);
-  transition:all .25s ease;min-width:180px;letter-spacing:.01em;font-size:.9rem}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 52px rgba(124,58,237,.58),0 4px 20px rgba(0,0,0,.3)}
-.btn-primary:active{transform:translateY(0)}
-.btn-ghost{font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:400;
-  padding:0 28px;height:48px;background:transparent;
-  color:rgba(232,232,240,.5);border:1px solid rgba(255,255,255,.1);
-  border-radius:10px;cursor:pointer;transition:all .25s ease;min-width:140px}
-.btn-ghost:hover{background:rgba(255,255,255,.05);color:#E8E8F0;border-color:rgba(255,255,255,.2)}
-
-.stats{display:flex;width:100%;max-width:700px;gap:1px;
-  background:rgba(255,255,255,.06);border-radius:14px;overflow:hidden;
-  border:1px solid rgba(255,255,255,.07);
-  margin-bottom:72px;animation:fadeUp .7s ease .3s both}
-.stat{flex:1;padding:22px 24px;background:#050508;text-align:center;position:relative}
-.stat+.stat::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:1px;height:38%;background:rgba(255,255,255,.07)}
-.stat-val{font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:700;
-  letter-spacing:-.02em;
-  background:linear-gradient(135deg,#a78bfa,#34d399);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  margin-bottom:4px}
-.stat-lbl{font-size:.68rem;color:rgba(232,232,240,.28);text-transform:uppercase;letter-spacing:.12em}
-
-.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
-  max-width:900px;width:100%;margin-bottom:72px;animation:fadeUp .7s ease .4s both}
-.feat{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);
-  border-radius:14px;padding:26px 22px;position:relative;overflow:hidden;
-  transition:border-color .3s,background .3s,transform .3s}
-.feat::after{content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(52,211,153,.06) 0%,transparent 55%);
-  opacity:0;transition:opacity .3s}
-.feat:hover{border-color:rgba(52,211,153,.2);background:rgba(255,255,255,.045);transform:translateY(-3px)}
-.feat:hover::after{opacity:1}
-.feat-icon{width:38px;height:38px;border-radius:9px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.05rem;margin-bottom:14px;
-  background:rgba(124,58,237,.13);border:1px solid rgba(124,58,237,.2);
-  position:relative;z-index:1}
-.feat-title{font-family:'Syne',sans-serif;font-size:.88rem;font-weight:700;
-  color:#E8E8F0;margin-bottom:8px;position:relative;z-index:1}
-.feat-desc{font-size:.79rem;font-weight:300;color:rgba(232,232,240,.36);
-  line-height:1.65;position:relative;z-index:1}
-
-.divider{width:100%;max-width:900px;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);margin-bottom:28px}
-.footer{font-size:.7rem;color:rgba(232,232,240,.16);text-align:center;letter-spacing:.06em}
-.footer a{color:rgba(52,211,153,.5);text-decoration:none}
-.footer a:hover{color:#34d399}
-
-@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-</style>
-</head>
-<body>
-<nav>
-  <div class="nav-logo"><span class="nav-logo-dot"></span>Codexa</div>
-  <ul class="nav-links">
-    <li><a href="#">Docs</a></li>
-    <li><a href="#">Pricing</a></li>
-    <li><a href="#">Blog</a></li>
-  </ul>
-  <div class="nav-badge">Beta Access</div>
-</nav>
-
-<main>
-  <a class="pill" href="https://oxlo.ai" target="_blank">
-    <div class="pill-dot">&lt;/&gt;</div>
-    <span>Powered by Oxlo.ai · DeepSeek-R1 &amp; 33B Coder</span>
-    <span class="pill-arrow">→</span>
-  </a>
-
-  <div class="hero">
-    <div class="eyebrow"><span>// </span>AI-Powered Coding Education<span> //</span></div>
-    <h1>Learn to code.<br><span class="accent">Think like a dev.</span></h1>
-    <p class="subtitle">Codexa pairs frontier AI reasoning with a live coding lab — so every concept clicks, not just compiles.</p>
-  </div>
-
-  <div class="code-chip">
-    <span class="cm"># Ask anything. Understand everything.</span><br>
-    <span class="kw">def </span><span class="fn">solve</span>(problem):<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;ai = <span class="fn">Codexa</span>(<span class="str">"DeepSeek-R1"</span>)<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> ai.<span class="fn">reason</span>(problem)<span class="cursor"></span>
-  </div>
-
-  <div class="cta-row">
-    <button class="btn-primary" onclick="goToLab()">⚡ Open the Lab</button>
-    <button class="btn-ghost" onclick="window.open('https://oxlo.ai','_blank')">Visit Oxlo.ai ↗</button>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><div class="stat-val">DeepSeek-R1</div><div class="stat-lbl">Reasoning Engine</div></div>
-    <div class="stat"><div class="stat-val">33B</div><div class="stat-lbl">Coder Model</div></div>
-    <div class="stat"><div class="stat-val">&lt;2s</div><div class="stat-lbl">Avg Response</div></div>
-    <div class="stat"><div class="stat-val">Codexa</div><div class="stat-lbl">Platform</div></div>
-  </div>
-
-  <div class="features">
-    <div class="feat"><div class="feat-icon">🧠</div>
-      <div class="feat-title">Chain-of-Thought Reasoning</div>
-      <div class="feat-desc">DeepSeek-R1 thinks through your problem step by step — no black-box answers.</div></div>
-    <div class="feat"><div class="feat-icon">⚡</div>
-      <div class="feat-title">Live Coding Lab</div>
-      <div class="feat-desc">Monaco editor (same engine as VS Code) in the browser. Write, run, and get AI feedback instantly.</div></div>
-    <div class="feat"><div class="feat-icon">🎯</div>
-      <div class="feat-title">Concept-First Learning</div>
-      <div class="feat-desc">Codexa teaches the mental model, not just the answer. You'll understand why, not just what.</div></div>
-  </div>
-
-  <div class="divider"></div>
-  <div class="footer">© 2025 <a href="https://oxlo.ai" target="_blank">Oxlo.ai</a> · Codexa — Built for engineers who actually want to learn</div>
-</main>
-
-<script>
-function goToLab() {
-  window.top.location.search = "?page=setup";
-}
-</script>
-</body>
-</html>"""
-
-    st_iframe(HOME_HTML, height=st.session_state.get("win_h", 900), scrolling=True)
-
-# ═════════════════════════════════════════════════════════════════════════════
-# SETUP / PREFERENCES PAGE
-# ═════════════════════════════════════════════════════════════════════════════
-elif current_page == "setup":
-
-    SETUP_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<style>
-    body { 
-        background: #050508; color: #E8E8F0; font-family: 'DM Sans', sans-serif; 
-        display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;
-    }
-    .setup-card {
-        background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 40px; border-radius: 24px; width: 100%; max-width: 500px; text-align: center;
-    }
-    h2 { font-family: 'Syne', sans-serif; font-size: 2rem; margin-bottom: 8px; }
-    p { color: rgba(232, 232, 240, 0.5); margin-bottom: 32px; font-size: 0.9rem; }
-    
-    .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px; }
-    
-    .opt-btn {
-        background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 16px; border-radius: 12px; color: #fff; cursor: pointer; transition: all 0.2s;
-        display: flex; flex-direction: column; align-items: center; gap: 8px;
-    }
-    .opt-btn:hover { background: rgba(124, 58, 237, 0.1); border-color: #7c3aed; }
-    .opt-btn.active { background: rgba(124, 58, 237, 0.2); border-color: #7c3aed; box-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
-    .opt-icon { font-size: 1.5rem; }
-    .opt-label { font-size: 0.8rem; font-weight: 600; }
-
-    .start-btn {
-        width: 100%; padding: 16px; border-radius: 12px; border: none;
-        background: linear-gradient(135deg, #7c3aed, #5b21b6);
-        color: white; font-weight: 600; cursor: pointer; transition: transform 0.2s;
-    }
-    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4); }
-</style>
-</head>
-<body>
-    <div class="setup-card">
-        <h2>Configure your Lab</h2>
-        <p>Select your preferred environment to begin.</p>
-        
-        <div class="option-grid">
-            <div class="opt-btn active" onclick="selectLang('python', this)">
-                <span class="opt-icon">🐍</span>
-                <span class="opt-label">Python</span>
-            </div>
-            <div class="opt-btn" onclick="selectLang('javascript', this)">
-                <span class="opt-icon">🟨</span>
-                <span class="opt-label">JavaScript</span>
-            </div>
-            <div class="opt-btn" onclick="selectLang('cpp', this)">
-                <span class="opt-icon">🟦</span>
-                <span class="opt-label">C++</span>
-            </div>
-            <div class="opt-btn" onclick="selectLang('java', this)">
-                <span class="opt-icon">☕</span>
-                <span class="opt-label">Java</span>
-            </div>
-        </div>
-
-        <button class="start-btn" onclick="launchLab()">Initialize Environment ⚡</button>
-    </div>
-
-    <script>
-        let selectedLang = 'python';
-
-        function selectLang(lang, el) {
-            selectedLang = lang;
-            document.querySelectorAll('.opt-btn').forEach(btn => btn.classList.remove('active'));
-            el.classList.add('active');
-        }
-
-        function launchLab() {
-            var url = new URL(window.parent.location.href);
-            url.searchParams.set('page', 'lab');
-            url.searchParams.set('lang', selectedLang);
-            window.parent.location.href = url.toString();
-        }
-    </script>
-</body>
-</html>"""
-    # Prefer loading the Setup UI from disk (cleaner than editing this string).
-    try:
-        with open(os.path.join("ui", "setup.html"), "r", encoding="utf-8") as f:
-            SETUP_HTML = f.read()
-    except Exception:
-        pass
-    st_iframe(SETUP_HTML, height=800, scrolling=False)
-# ═════════════════════════════════════════════════════════════════════════════
-# LAB PAGE — full VS Code-style Monaco editor
-# ═════════════════════════════════════════════════════════════════════════════
-elif current_page == "lab":
-
-    LAB_HTML = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -386,7 +15,7 @@ html,body{
 
 /* ── Activity bar (leftmost strip, like VS Code) ── */
 .activity-bar{
-  position:fixed;left:0;top:0;bottom:0;width:48px;
+  position:fixed;left:0;top:36px;bottom:0;width:48px;
   background:#111118;border-right:1px solid rgba(255,255,255,.05);
   display:flex;flex-direction:column;align-items:center;
   padding:8px 0;gap:4px;z-index:50;
@@ -404,7 +33,7 @@ html,body{
 
 /* ── Sidebar panel ── */
 .sidebar{
-  position:fixed;left:48px;top:0;bottom:0;width:220px;
+  position:fixed;left:48px;top:36px;bottom:0;width:220px;
   background:#0e0e18;border-right:1px solid rgba(255,255,255,.05);
   display:flex;flex-direction:column;overflow:hidden;
   transition:transform .2s ease;z-index:40;
@@ -440,8 +69,65 @@ html,body{
 .ai-shortcut-icon{font-size:.75rem;opacity:.7}
 
 /* ── Top tab bar ── */
+.top-hud{
+  position:fixed;
+  top:0;left:0;right:0;
+  height:36px;
+  z-index:80;
+  background:rgba(5,5,8,.78);
+  backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  display:flex;
+  align-items:center;
+  padding:0 14px;
+  gap:12px;
+}
+.top-hud-left{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  min-width:220px;
+}
+.top-hud-title{
+  font-family:'Syne',sans-serif;
+  font-weight:800;
+  font-size:.78rem;
+  letter-spacing:-.02em;
+  color:rgba(232,232,240,.9);
+}
+.top-hud-meta{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.64rem;
+  color:rgba(148,163,184,.8);
+}
+.top-hud-bar{
+  flex:1;
+  height:8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  overflow:hidden;
+}
+.top-hud-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#34d399,#7c3aed);
+}
+.top-hud-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.top-hud-pill{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.62rem;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:rgba(232,232,240,.7);
+}
 .tabbar{
-  position:fixed;left:268px;right:0;top:0;height:37px;
+  position:fixed;left:268px;right:0;top:36px;height:37px;
   background:#0d0d16;border-bottom:1px solid rgba(255,255,255,.06);
   display:flex;align-items:stretch;z-index:30;
   transition:left .2s;
@@ -476,7 +162,7 @@ html,body{
 /* ── Main editor area ── */
 .editor-area{
   position:fixed;
-  left:268px;right:320px;top:37px;
+  left:268px;right:320px;top:73px;
   bottom:200px;
   transition:left .2s;
 }
@@ -518,7 +204,7 @@ html,body{
 
 /* ── AI Panel ── */
 .ai-panel{
-  position:fixed;right:0;top:0;bottom:0;width:320px;
+  position:fixed;right:0;top:36px;bottom:0;width:320px;
   background:#0b0b14;
   border-left:1px solid rgba(255,255,255,.05);
   display:flex;flex-direction:column;overflow:hidden;
@@ -624,6 +310,38 @@ html,body{
   background:rgba(15,23,42,.8);
   color:rgba(148,163,184,.8);
 }
+.question-meta{
+  font-size:.64rem;
+  color:rgba(148,163,184,.7);
+  padding:4px 6px 8px;
+  font-family:'JetBrains Mono',monospace;
+}
+.question-tests{
+  margin:8px 0 0;
+  padding:8px;
+  border-radius:10px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+}
+.question-tests-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.62rem;
+  color:rgba(232,232,240,.65);
+  margin-bottom:6px;
+}
+.question-test{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.62rem;
+  color:rgba(148,163,184,.75);
+  line-height:1.5;
+  padding:6px 6px;
+  border-radius:8px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.04);
+  margin-bottom:6px;
+  white-space:pre-wrap;
+}
+.question-test strong{color:rgba(232,232,240,.8)}
 
 /* ── Status bar (bottom strip) ── */
 .statusbar{position:fixed;left:0;right:0;bottom:0;height:22px;
@@ -646,6 +364,20 @@ html,body{
   <button class="act-btn" title="Extensions">🧩</button>
   <div class="act-spacer"></div>
   <div class="act-logo">CX</div>
+</div>
+
+<!-- TOP HUD (full width) -->
+<div class="top-hud" id="top-hud">
+  <div class="top-hud-left">
+    <div class="top-hud-title" id="hud-level">Level: Beginner</div>
+    <div class="top-hud-meta" id="hud-q">Q 1 / 20</div>
+  </div>
+  <div class="top-hud-bar" aria-label="Level progress">
+    <div class="top-hud-fill" id="hud-fill"></div>
+  </div>
+  <div class="top-hud-right">
+    <div class="top-hud-pill" id="hud-lang">Lang: Python</div>
+  </div>
 </div>
 
 <!-- SIDEBAR -->
@@ -780,83 +512,275 @@ html,body{
 </div>
 
 <!-- Monaco + Lab Logic -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
 <script>
 // ── State ─────────────────────────────────────────────────────────────────
 const urlParams = new URLSearchParams(window.parent.location.search);
-var currentLang = urlParams.get('lang') || 'python'; 
+var currentLang = urlParams.get('lang') || 'python';
+var currentLevel = (urlParams.get('level') || 'beginner').toLowerCase();
 var editor; 
 var sidebarVisible = true;
 
 var EXTS = {python:'.py',javascript:'.js',cpp:'.cpp',java:'.java'};
 var MONO_LANG = {python:'python',javascript:'javascript',cpp:'cpp',java:'java'};
 
-// ── Progressive questions per language ───────────────────────────────────
-var QUESTIONS = {
-  python: [
-    "Write a program that prints 'Hello, World!' to the terminal.",
-    "Create a function that adds two numbers and prints the result.",
-    "Write a loop that prints the numbers 1 through 10."
-  ],
-  javascript: [
-    "Log 'Hello from JavaScript' to the console.",
-    "Write a function add(a, b) that returns their sum.",
-    "Use a for loop to log numbers 1 to 10."
-  ],
-  cpp: [
-    "Write a C++ program that prints 'Hello, World!'.",
-    "Create a function that returns the square of an integer.",
-    "Use a for loop to print the elements of an integer array."
-  ],
-  java: [
-    "Write a Java program with main that prints 'Hello, World!'.",
-    "Create a method that concatenates two strings and prints the result.",
-    "Use a for loop to print numbers 1 to 10."
-  ]
-};
+function normalizeLevel(level){
+  var l = (level || '').toLowerCase();
+  if(l === 'easy') return 'beginner';
+  if(l === 'hard') return 'advanced';
+  if(l !== 'beginner' && l !== 'intermediate' && l !== 'advanced' && l !== 'generated') return 'beginner';
+  return l;
+}
+currentLevel = normalizeLevel(currentLevel);
 
-var questionProgress = JSON.parse(localStorage.getItem('codexa_question_progress') || '{}');
+var LEVEL_ORDER = ['beginner','intermediate','advanced','generated'];
 
-function getCurrentQuestionIndex(){
-  if(!(currentLang in questionProgress)){
-    questionProgress[currentLang] = 0;
-  }
-  return questionProgress[currentLang];
+// ── Progressive questions (20 per level, with test cases) ──────────────────
+// Each question is language-agnostic (works for any language), but examples can differ.
+function q(prompt, tests){
+  return { prompt: prompt, tests: tests || [] };
 }
 
-function saveQuestionProgress(){
-  localStorage.setItem('codexa_question_progress', JSON.stringify(questionProgress));
+function fixedQuestionBank(level){
+  if(level === 'beginner'){
+    return [
+      q("Print exactly: Hello, World!", [{input:"", expected:"Hello, World!"}]),
+      q("Read two integers and print their sum.", [{input:"2 3", expected:"5"}]),
+      q("Given an integer n, print numbers 1..n each on a new line.", [{input:"5", expected:"1\\n2\\n3\\n4\\n5"}]),
+      q("Given n, print n! (factorial).", [{input:"5", expected:"120"}]),
+      q("Given a string s, print its length.", [{input:"hello", expected:"5"}]),
+      q("Given a string s, print it reversed.", [{input:"abcd", expected:"dcba"}]),
+      q("Given n, print 'EVEN' if n is even else 'ODD'.", [{input:"7", expected:"ODD"},{input:"10", expected:"EVEN"}]),
+      q("Given three integers, print the maximum.", [{input:"1 9 3", expected:"9"}]),
+      q("Given a list of integers, print their sum.", [{input:"5\\n1 2 3 4 5", expected:"15"}]),
+      q("Given a list of integers, print the minimum.", [{input:"4\\n8 3 7 2", expected:"2"}]),
+      q("Count vowels in a string (a,e,i,o,u).", [{input:"education", expected:"5"}]),
+      q("Given n, print the first n Fibonacci numbers on one line (space-separated).", [{input:"7", expected:"0 1 1 2 3 5 8"}]),
+      q("Given an integer n, print the sum of digits.", [{input:"4096", expected:"19"}]),
+      q("Given two integers a,b print a^b (power).", [{input:"2 10", expected:"1024"}]),
+      q("Given a list, count how many are > 0.", [{input:"6\\n-2 0 1 5 -1 3", expected:"3"}]),
+      q("Print a right triangle of '*' of height n.", [{input:"4", expected:"*\\n**\\n***\\n****"}]),
+      q("Given n, print all divisors of n in increasing order.", [{input:"12", expected:"1 2 3 4 6 12"}]),
+      q("Given a string, print 'YES' if it's a palindrome else 'NO'.", [{input:"racecar", expected:"YES"},{input:"hello", expected:"NO"}]),
+      q("Given a list, print it sorted ascending.", [{input:"5\\n3 1 5 2 4", expected:"1 2 3 4 5"}]),
+      q("Mini task: Given n, print sum of 1..n.", [{input:"100", expected:"5050"}]),
+    ];
+  }
+  if(level === 'intermediate'){
+    return [
+      q("Given a string, count frequency of each character (output any consistent format).", [{input:"aab", expected:"a:2 b:1"}]),
+      q("Given n and n integers, output the second largest.", [{input:"5\\n2 9 1 9 7", expected:"7"}]),
+      q("Two-sum: given n, array, and target t, print YES if any pair sums to t else NO.", [{input:"5\\n1 4 2 8 5\\n6", expected:"YES"}]),
+      q("Given a string, remove all spaces.", [{input:"a b  c", expected:"abc"}]),
+      q("Given n, print primes up to n (space-separated).", [{input:"10", expected:"2 3 5 7"}]),
+      q("Given an array, compute prefix sums and print them.", [{input:"5\\n1 2 3 4 5", expected:"1 3 6 10 15"}]),
+      q("Binary search: given sorted array and x, output its index (0-based) or -1.", [{input:"5\\n1 3 5 7 9\\n7", expected:"3"}]),
+      q("Rotate array right by k.", [{input:"5\\n1 2 3 4 5\\n2", expected:"4 5 1 2 3"}]),
+      q("Given a matrix n x m, print the sum of each row.", [{input:"2 3\\n1 2 3\\n4 5 6", expected:"6\\n15"}]),
+      q("Given a string, find the first non-repeating character (or -1).", [{input:"aabbcdd", expected:"c"}]),
+      q("Valid parentheses: given a string of ()[]{} check if valid (YES/NO).", [{input:"([]){}", expected:"YES"},{input:"([)]", expected:"NO"}]),
+      q("Count distinct elements in an array.", [{input:"7\\n1 2 2 3 3 3 4", expected:"4"}]),
+      q("Longest word in a sentence.", [{input:"the quick brown fox", expected:"quick"}]),
+      q("Merge two sorted arrays.", [{input:"3\\n1 4 7\\n4\\n2 3 6 8", expected:"1 2 3 4 6 7 8"}]),
+      q("Find the gcd of two integers.", [{input:"54 24", expected:"6"}]),
+      q("Find the lcm of two integers.", [{input:"6 8", expected:"24"}]),
+      q("Sliding window: max sum of subarray length k.", [{input:"7\\n2 1 5 1 3 2 4\\n3", expected:"10"}]),
+      q("Group anagrams count: given words, output number of anagram groups.", [{input:"4\\nlisten silent enlist google", expected:"2"}]),
+      q("Simple class/object: implement a counter with inc/dec and print final value.", [{input:"5\\ninc\\ninc\\ndec\\ninc\\ninc", expected:"3"}]),
+      q("Mini task: parse CSV line 'a,b,c' and print fields each line.", [{input:"x,y,z", expected:"x\\ny\\nz"}]),
+    ];
+  }
+  // advanced
+  return [
+    q("DP: Given n, count ways to climb n steps taking 1 or 2 steps.", [{input:"5", expected:"8"}]),
+    q("DP: Given array, find maximum subarray sum.", [{input:"8\\n-2 1 -3 4 -1 2 1 -5", expected:"6"}]),
+    q("Graph: Given n,m edges undirected, output number of connected components.", [{input:"5 3\\n1 2\\n2 3\\n4 5", expected:"2"}]),
+    q("BFS shortest path in unweighted graph from 1 to n.", [{input:"5 5\\n1 2\\n2 3\\n3 5\\n1 4\\n4 5", expected:"2"}]),
+    q("Topological sort: detect cycle in directed graph (YES/NO for cycle).", [{input:"3 3\\n1 2\\n2 3\\n3 1", expected:"YES"}]),
+    q("Dijkstra idea: Given weighted graph, output shortest distance 1->n.", [{input:"4 4\\n1 2 1\\n2 4 2\\n1 3 5\\n3 4 1", expected:"3"}]),
+    q("Hash map: two-sum but output indices (any valid pair).", [{input:"4\\n2 7 11 15\\n9", expected:"0 1"}]),
+    q("String DP: longest common subsequence length.", [{input:"abcde\\nace", expected:"3"}]),
+    q("Edit distance between two strings.", [{input:"kitten\\nsitting", expected:"3"}]),
+    q("Knapsack 0/1: maximize value under capacity.", [{input:"3 50\\n10 60\\n20 100\\n30 120", expected:"220"}]),
+    q("Interval scheduling: max non-overlapping intervals.", [{input:"4\\n1 3\\n2 4\\n3 5\\n6 8", expected:"2"}]),
+    q("Trie-ish: prefix check — given words, output YES if any is prefix of another.", [{input:"3\\napp\\napple\\nbanana", expected:"YES"}]),
+    q("Custom sort stability: sort by length then lexicographically.", [{input:"4\\npear\\nfig\\napple\\nkiwi", expected:"fig\\nkiwi\\npear\\napple"}]),
+    q("Matrix: rotate 90 degrees clockwise.", [{input:"2\\n1 2\\n3 4", expected:"3 1\\n4 2"}]),
+    q("Bit ops: count set bits in integer.", [{input:"13", expected:"3"}]),
+    q("Large constraints: explain time complexity of your solution in one line (print it).", [{input:"", expected:"O(n log n)"}]),
+    q("Testing: write 3 tests for your own solution and print them.", [{input:"", expected:"3"}]),
+    q("Refactor: split code into functions; print function count.", [{input:"", expected:"2"}]),
+    q("Robust parsing: ignore extra spaces/newlines and still solve sum task.", [{input:" 2  \\n  3 ", expected:"5"}]),
+    q("Final challenge: combine graph + DP idea; outline approach in output (short).", [{input:"", expected:"outline"}]),
+  ];
+}
+
+function getGeneratedQuestions(lang){
+  var key = 'codexa_generated_questions:' + lang;
+  var arr = JSON.parse(localStorage.getItem(key) || '[]');
+  if(!Array.isArray(arr)) arr = [];
+  // Back-compat: older versions stored strings; convert to objects.
+  arr = arr.map(function(x){
+    if(typeof x === 'string') return {prompt:x, tests:[]};
+    if(x && typeof x === 'object' && typeof x.prompt === 'string') return x;
+    return {prompt:String(x), tests:[]};
+  });
+  return {
+    key: key,
+    list: arr
+  };
+}
+
+function ensureGeneratedCount(lang, minCount){
+  var gen = getGeneratedQuestions(lang);
+  while(gen.list.length < minCount){
+    var idx = gen.list.length + 1;
+    var pool = [
+      "edge cases",
+      "optimize complexity",
+      "write tests",
+      "refactor for readability",
+      "handle invalid input",
+      "explain trade-offs",
+      "alternative approach",
+      "prove correctness informally"
+    ];
+    var topic = pool[Math.floor(Math.random() * pool.length)];
+    gen.list.push({prompt:("AI Q" + idx + " — " + topic + ": Improve/extend your current solution to address " + topic + "."), tests:[]});
+  }
+  localStorage.setItem(gen.key, JSON.stringify(gen.list));
+  return gen.list;
+}
+
+var progress = JSON.parse(localStorage.getItem('codexa_progress_v2') || '{}');
+
+function progressKey(){
+  return currentLang + '::' + currentLevel;
+}
+
+function getIndex(){
+  var k = progressKey();
+  if(!(k in progress)) progress[k] = 0;
+  return progress[k];
+}
+
+function setIndex(v){
+  progress[progressKey()] = v;
+  localStorage.setItem('codexa_progress_v2', JSON.stringify(progress));
+}
+
+function setLevel(level){
+  currentLevel = normalizeLevel(level);
+  try{
+    var url = new URL(window.parent.location.href);
+    url.searchParams.set('level', currentLevel);
+    window.parent.history.replaceState({}, '', url.toString());
+  } catch(e) {}
+}
+
+function getQuestionsForCurrent(){
+  if(currentLevel === 'generated'){
+    // always keep at least 20 AI-generated questions available
+    return ensureGeneratedCount(currentLang, 20);
+  }
+  return fixedQuestionBank(currentLevel);
+}
+
+function tryAdvanceLevelIfComplete(){
+  var qs = getQuestionsForCurrent();
+  var idx = getIndex();
+  if(idx < qs.length) return false;
+  var curPos = LEVEL_ORDER.indexOf(currentLevel);
+  if(curPos === -1) curPos = 0;
+  if(curPos < LEVEL_ORDER.length - 1){
+    setLevel(LEVEL_ORDER[curPos + 1]);
+    setIndex(0);
+    return true;
+  }
+  // stay in generated forever
+  setLevel('generated');
+  setIndex(0);
+  return true;
 }
 
 function renderQuestions(){
   var container = document.getElementById('question-list');
-  if(!container || !QUESTIONS[currentLang]) return;
+  if(!container) return;
+
+  // If the user finished a level, auto-advance.
+  tryAdvanceLevelIfComplete();
+
+  var qs = getQuestionsForCurrent();
+  var idx = getIndex();
+  var total = qs.length || 0;
+  var displayCurrent = Math.min(idx + 1, Math.max(total, 1));
+  var pct = total > 0 ? Math.min(100, Math.max(0, (idx / total) * 100)) : 0;
+
+  // Full-width HUD (top of screen)
+  var hudLevel = document.getElementById('hud-level');
+  var hudQ = document.getElementById('hud-q');
+  var hudFill = document.getElementById('hud-fill');
+  var hudLang = document.getElementById('hud-lang');
+  if(hudLevel){
+    hudLevel.textContent = 'Level: ' + (currentLevel.charAt(0).toUpperCase()+currentLevel.slice(1));
+  }
+  if(hudQ){
+    hudQ.textContent = 'Q ' + displayCurrent + ' / ' + total;
+  }
+  if(hudFill){
+    hudFill.style.width = pct.toFixed(1) + '%';
+  }
+  if(hudLang){
+    var langTitle = currentLang.charAt(0).toUpperCase()+currentLang.slice(1);
+    hudLang.textContent = 'Lang: ' + langTitle;
+  }
+
   container.innerHTML = '';
-  var idx = getCurrentQuestionIndex();
-  QUESTIONS[currentLang].forEach(function(q, i){
+
+  var hdr = document.createElement('div');
+  hdr.className = 'question-meta';
+  hdr.textContent = 'Level: ' + (currentLevel.charAt(0).toUpperCase()+currentLevel.slice(1)) + ' • ' + displayCurrent + '/' + total;
+  container.appendChild(hdr);
+
+  qs.forEach(function(qObj, i){
     var row = document.createElement('div');
     var stateClass = i < idx ? 'completed' : (i === idx ? 'current' : 'locked');
     row.className = 'question-item ' + stateClass;
-    row.textContent = (i + 1) + '. ' + q;
+    row.textContent = (i + 1) + '. ' + (qObj && qObj.prompt ? qObj.prompt : String(qObj));
     container.appendChild(row);
   });
 
+  // Show test cases for the current question (if any)
+  var cur = qs[Math.min(idx, Math.max(0, qs.length - 1))];
+  if(cur && cur.tests && cur.tests.length){
+    var box = document.createElement('div');
+    box.className = 'question-tests';
+    var t = document.createElement('div');
+    t.className = 'question-tests-title';
+    t.textContent = 'Test cases (use these to validate your solution)';
+    box.appendChild(t);
+    cur.tests.forEach(function(tc, j){
+      var d = document.createElement('div');
+      d.className = 'question-test';
+      d.innerHTML =
+        '<strong>Input</strong>\\n' + (tc.input || '') +
+        '\\n\\n<strong>Expected</strong>\\n' + (tc.expected || '');
+      box.appendChild(d);
+    });
+    container.appendChild(box);
+  }
+
   var btn = document.createElement('button');
   btn.className = 'question-complete-btn';
-  if(idx >= QUESTIONS[currentLang].length - 1){
-    btn.textContent = 'All questions completed';
-    btn.disabled = true;
-  } else {
-    btn.textContent = 'Mark current question as done';
-    btn.disabled = false;
-    btn.onclick = function(){
-      var i = getCurrentQuestionIndex();
-      if(i < QUESTIONS[currentLang].length - 1){
-        questionProgress[currentLang] = i + 1;
-        saveQuestionProgress();
-        renderQuestions();
-      }
-    };
-  }
+  btn.textContent = (currentLevel === 'generated') ? 'Mark current AI question as done' : 'Mark current question as done';
+  btn.disabled = false;
+  btn.onclick = function(){
+    var i = getIndex();
+    setIndex(i + 1);
+    // if finished current level, auto-move to next
+    tryAdvanceLevelIfComplete();
+    renderQuestions();
+  };
   container.appendChild(btn);
 }
 
@@ -1136,27 +1060,4 @@ function goHome(){
 }
 </script>
 </body>
-</html>"""
-
-    # Load the Lab UI from disk (keeps `app.py` cleaner to work with).
-    # Edit `ui/lab.html` for Monaco/editor changes.
-    try:
-        with open(os.path.join("ui", "lab.html"), "r", encoding="utf-8") as f:
-            LAB_HTML = f.read()
-    except Exception:
-        pass
-
-    st_iframe(LAB_HTML, height=800, scrolling=False)
-
-import os
-os.makedirs("ui", exist_ok=True)
-if not os.path.exists("ui/home.html"):
-    with open("ui/home.html", "w", encoding="utf-8") as f:
-        f.write(HOME_HTML)
-if not os.path.exists("ui/setup.html"):
-    with open("ui/setup.html", "w", encoding="utf-8") as f:
-        f.write(SETUP_HTML)
-if not os.path.exists("ui/lab.html"):
-    # `ui/lab.html` is tracked in the repo; if it's missing we can regenerate it
-    # by running `python refactor.py`.
-    pass
+</html>
