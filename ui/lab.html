@@ -343,6 +343,35 @@ html,body{
 }
 .question-test strong{color:rgba(232,232,240,.8)}
 
+/* New styles for question widgets */
+.question-widget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all .2s;
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.question-widget.current {
+  background: rgba(124, 58, 237, .18);
+  border: 1px solid rgba(124, 58, 237, .35);
+  color: #e5e7eb;
+}
+.question-widget.greyed {
+  background: rgba(15, 23, 42, .7);
+  border: 1px dashed rgba(148, 163, 184, .3);
+  color: rgba(148, 163, 184, .6);
+}
+.question-widget-logo {
+  font-size: 1.2rem;
+  opacity: 0.7;
+  margin-left: 8px;
+}
+
 /* ── Status bar (bottom strip) ── */
 .statusbar{position:fixed;left:0;right:0;bottom:0;height:22px;
   background:#1a0a3a;display:flex;align-items:center;
@@ -359,9 +388,9 @@ html,body{
 
 <!-- ACTIVITY BAR -->
 <div class="activity-bar">
-  <button class="act-btn active" onclick="toggleSidebar()" title="Explorer">📁</button>
-  <button class="act-btn" title="Search">🔍</button>
-  <button class="act-btn" title="Extensions">🧩</button>
+  <button class="act-btn" id="nav-file" onclick="showSidebarPanel('info')" title="Show Information"><span>📁</span></button>
+  <button class="act-btn" id="nav-info" onclick="showSidebarPanel('info')" title="Show Information"><span>ℹ️</span></button>
+  <button class="act-btn" id="nav-list" onclick="showSidebarPanel('questions')" title="All Questions"><span>📝</span></button>
   <div class="act-spacer"></div>
   <div class="act-logo">CX</div>
 </div>
@@ -380,70 +409,17 @@ html,body{
   </div>
 </div>
 
+
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
-  <div class="sidebar-title">Explorer</div>
-
-  <div class="sidebar-section">
-    <div class="section-label">Language</div>
-    <button class="lang-btn active" id="lang-python" onclick="setLang('python','Python','main.py','#3b82f6')">
-      <span class="lang-dot" style="background:#3b82f6"></span>Python
-    </button>
-    <button class="lang-btn" id="lang-javascript" onclick="setLang('javascript','JavaScript','index.js','#eab308')">
-      <span class="lang-dot" style="background:#eab308"></span>JavaScript
-    </button>
-    <button class="lang-btn" id="lang-cpp" onclick="setLang('cpp','C++','main.cpp','#8b5cf6')">
-      <span class="lang-dot" style="background:#8b5cf6"></span>C++
-    </button>
-    <button class="lang-btn" id="lang-java" onclick="setLang('java','Java','Main.java','#f97316')">
-      <span class="lang-dot" style="background:#f97316"></span>Java
-    </button>
+  <div class="sidebar-title">Learning Path</div>
+  <div id="sidebar-info-panel" class="sidebar-section">
+    <div class="section-label">Question</div>
+    <div id="info-container"></div>
   </div>
-
-  <div class="sidebar-divider"></div>
-
-  <div class="sidebar-section">
-    <div class="section-label">Files</div>
-    <div class="file-item active" id="snip-hello" onclick="loadSnippet('hello',this)">
-      <span>📄</span>hello<span class="file-ext" id="snip-ext">.py</span>
-    </div>
-    <div class="file-item" id="snip-fibonacci" onclick="loadSnippet('fibonacci',this)">
-      <span>📄</span>fibonacci<span class="file-ext" id="snip-ext2">.py</span>
-    </div>
-    <div class="file-item" id="snip-sorting" onclick="loadSnippet('sorting',this)">
-      <span>📄</span>sorting<span class="file-ext" id="snip-ext3">.py</span>
-    </div>
-    <div class="file-item" id="snip-recursion" onclick="loadSnippet('recursion',this)">
-      <span>📄</span>recursion<span class="file-ext" id="snip-ext4">.py</span>
-    </div>
-    <div class="file-item" id="snip-classes" onclick="loadSnippet('classes',this)">
-      <span>📄</span>classes<span class="file-ext" id="snip-ext5">.py</span>
-    </div>
-  </div>
-
-  <div class="sidebar-divider"></div>
-
-  <div class="sidebar-section">
-    <div class="section-label">AI Quick Actions</div>
-    <div class="ai-shortcut" onclick="sendAI('Explain this code line by line')">
-      <span class="ai-shortcut-icon">✦</span>Explain code
-    </div>
-    <div class="ai-shortcut" onclick="sendAI('Find bugs in this code and explain them')">
-      <span class="ai-shortcut-icon">✦</span>Find bugs
-    </div>
-    <div class="ai-shortcut" onclick="sendAI('How can I optimize this code?')">
-      <span class="ai-shortcut-icon">✦</span>Optimize
-    </div>
-    <div class="ai-shortcut" onclick="sendAI('What is the time complexity of this code?')">
-      <span class="ai-shortcut-icon">✦</span>Complexity
-    </div>
-  </div>
-
-  <div class="sidebar-divider"></div>
-
-  <div class="sidebar-section">
-    <div class="section-label">Questions</div>
-    <div id="question-list"></div>
+  <div id="sidebar-questions-panel" class="sidebar-section" style="display:none">
+    <div class="section-label">All Questions</div>
+    <div id="all-questions-list"></div>
   </div>
 </div>
 
@@ -704,8 +680,9 @@ function tryAdvanceLevelIfComplete(){
 }
 
 function renderQuestions(){
-  var container = document.getElementById('question-list');
-  if(!container) return;
+  var listContainer = document.getElementById('all-questions-list');
+  var infoContainer = document.getElementById('info-container');
+  if(!listContainer || !infoContainer) return;
 
   // If the user finished a level, auto-advance.
   tryAdvanceLevelIfComplete();
@@ -735,39 +712,58 @@ function renderQuestions(){
     hudLang.textContent = 'Lang: ' + langTitle;
   }
 
-  container.innerHTML = '';
+  // Clear containers
+  listContainer.innerHTML = '';
+  infoContainer.innerHTML = '';
 
+  // Header for All Questions
   var hdr = document.createElement('div');
   hdr.className = 'question-meta';
   hdr.textContent = 'Level: ' + (currentLevel.charAt(0).toUpperCase()+currentLevel.slice(1)) + ' • ' + displayCurrent + '/' + total;
-  container.appendChild(hdr);
+  listContainer.appendChild(hdr);
 
+  // Render all questions for the current level in All Questions panel
   qs.forEach(function(qObj, i){
-    var row = document.createElement('div');
-    var stateClass = i < idx ? 'completed' : (i === idx ? 'current' : 'locked');
-    row.className = 'question-item ' + stateClass;
-    row.textContent = (i + 1) + '. ' + (qObj && qObj.prompt ? qObj.prompt : String(qObj));
-    container.appendChild(row);
+    var widget = document.createElement('div');
+    widget.className = 'question-widget ' + (i === idx ? 'current' : 'greyed');
+    var text = document.createElement('span');
+    text.textContent = (qObj && qObj.prompt ? (i+1)+'. '+qObj.prompt : String(qObj));
+    widget.appendChild(text);
+    if (i !== idx) {
+      var logo = document.createElement('span');
+      logo.className = 'question-widget-logo';
+      logo.textContent = '❓';
+      widget.appendChild(logo);
+    }
+    listContainer.appendChild(widget);
   });
 
-  // Show test cases for the current question (if any)
-  var cur = qs[Math.min(idx, Math.max(0, qs.length - 1))];
-  if(cur && cur.tests && cur.tests.length){
-    var box = document.createElement('div');
-    box.className = 'question-tests';
-    var t = document.createElement('div');
-    t.className = 'question-tests-title';
-    t.textContent = 'Test cases (use these to validate your solution)';
-    box.appendChild(t);
-    cur.tests.forEach(function(tc, j){
+  // Information panel: show only the current question and its example
+  var cur = qs[idx];
+  if(cur){
+    // Question prompt
+    var qDiv = document.createElement('div');
+    qDiv.className = 'question-widget current';
+    qDiv.textContent = (idx+1)+'. '+(cur.prompt || String(cur));
+    infoContainer.appendChild(qDiv);
+
+    // Example input/output (first test case)
+    if(cur.tests && cur.tests.length){
+      var box = document.createElement('div');
+      box.className = 'question-tests';
+      var t = document.createElement('div');
+      t.className = 'question-tests-title';
+      t.textContent = 'Example';
+      box.appendChild(t);
+      var tc = cur.tests[0];
       var d = document.createElement('div');
       d.className = 'question-test';
       d.innerHTML =
-        '<strong>Input</strong>\\n' + (tc.input || '') +
-        '\\n\\n<strong>Expected</strong>\\n' + (tc.expected || '');
+        '<strong>Input</strong><br>' + (tc.input || '') +
+        '<br><br><strong>Expected Output</strong><br>' + (tc.expected || '');
       box.appendChild(d);
-    });
-    container.appendChild(box);
+      infoContainer.appendChild(box);
+    }
   }
 
   var btn = document.createElement('button');
@@ -781,7 +777,7 @@ function renderQuestions(){
     tryAdvanceLevelIfComplete();
     renderQuestions();
   };
-  container.appendChild(btn);
+  listContainer.appendChild(btn);
 }
 
 // ── Monaco init ───────────────────────────────────────────────────────────
@@ -841,26 +837,22 @@ require(['vs/editor/editor.main'], function(){
   renderQuestions();
 });
 
-// ── Sidebar toggle ────────────────────────────────────────────────────────
-function toggleSidebar(){
-  sidebarVisible = !sidebarVisible;
-  var sb = document.getElementById('sidebar');
-  var tb = document.getElementById('tabbar');
-  var ea = document.getElementById('editor-area');
-  var tm = document.getElementById('terminal');
-  if(sidebarVisible){
-    sb.classList.remove('hidden');
-    tb.classList.remove('full');
-    ea.classList.remove('full');
-    tm.classList.remove('full');
-  } else {
-    sb.classList.add('hidden');
-    tb.classList.add('full');
-    ea.classList.add('full');
-    tm.classList.add('full');
-  }
-  if(editor) editor.layout();
+// ── Sidebar panel switching ─────────────────────────────────────────────
+function showSidebarPanel(panel) {
+  // Only show one panel at a time
+  document.getElementById('sidebar-info-panel').style.display = (panel === 'info') ? '' : 'none';
+  document.getElementById('sidebar-questions-panel').style.display = (panel === 'questions') ? '' : 'none';
+  // Set active icon
+  document.getElementById('nav-file').classList.toggle('active', panel === 'info');
+  document.getElementById('nav-info').classList.toggle('active', panel === 'info');
+  document.getElementById('nav-list').classList.toggle('active', panel === 'questions');
 }
+
+// Default: show info panel and render questions on load
+window.addEventListener('DOMContentLoaded', function() {
+  showSidebarPanel('info');
+  renderQuestions();
+});
 
 // ── Language switch ───────────────────────────────────────────────────────
 function setLang(lang, label, filename, color){
