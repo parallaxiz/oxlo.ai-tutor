@@ -790,6 +790,37 @@ var sidebarVisible = true;
 var EXTS = {python:'.py',javascript:'.js',cpp:'.cpp',java:'.java'};
 var MONO_LANG = {python:'python',javascript:'javascript',cpp:'cpp',java:'java'};
 
+var SNIPPETS = {
+  python: {
+    hello: 'print("Hello, World!")\n',
+    fibonacci: 'def fibonacci(n):\n    if n <= 0:\n        return 0\n    elif n == 1:\n        return 1\n    else:\n        return fibonacci(n-1) + fibonacci(n-2)\n\nprint(fibonacci(10))\n',
+    sorting: 'def bubble_sort(arr):\n    n = len(arr)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if arr[j] > arr[j+1]:\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr\n\narr = [64, 34, 25, 12, 22, 11, 90]\nprint("Before:", arr)\nprint("After: ", bubble_sort(arr))\n',
+    recursion: 'def factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * factorial(n-1)\n\nprint("5! =", factorial(5))\n',
+    classes: 'class Animal:\n    def __init__(self, name):\n        self.name = name\n\n    def speak(self):\n        pass\n\nclass Dog(Animal):\n    def speak(self):\n        return f"{self.name} says Woof!"\n\nrex = Dog("Rex")\nprint(rex.speak())\n'
+  },
+  javascript: {
+    hello: 'console.log("Hello, World!");\n',
+    fibonacci: 'function fibonacci(n) {\n    if (n <= 0) return 0;\n    if (n === 1) return 1;\n    return fibonacci(n-1) + fibonacci(n-2);\n}\n\nconsole.log(fibonacci(10));\n',
+    sorting: 'function bubbleSort(arr) {\n    let n = arr.length;\n    for (let i = 0; i < n; i++) {\n        for (let j = 0; j < n - i - 1; j++) {\n            if (arr[j] > arr[j + 1]) {\n                let temp = arr[j];\n                arr[j] = arr[j + 1];\n                arr[j + 1] = temp;\n            }\n        }\n    }\n    return arr;\n}\n\nlet arr = [64, 34, 25, 12, 22, 11, 90];\nconsole.log("Before:", arr.join(" "));\nconsole.log("After: ", bubbleSort(arr).join(" "));\n',
+    recursion: 'function factorial(n) {\n    if (n === 0) return 1;\n    return n * factorial(n-1);\n}\n\nconsole.log("5! = " + factorial(5));\n',
+    classes: 'class Animal {\n    constructor(name) {\n        this.name = name;\n    }\n    speak() {}\n}\n\nclass Dog extends Animal {\n    speak() {\n        return `${this.name} says Woof!`;\n    }\n}\n\nlet rex = new Dog("Rex");\nconsole.log(rex.speak());\n'
+  },
+  cpp: {
+    hello: '#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}\n',
+    fibonacci: '#include <iostream>\n\nint fibonacci(int n) {\n    if (n <= 0) return 0;\n    if (n == 1) return 1;\n    return fibonacci(n-1) + fibonacci(n-2);\n}\n\nint main() {\n    std::cout << fibonacci(10) << std::endl;\n    return 0;\n}\n',
+    sorting: '#include <iostream>\n#include <vector>\n\nvoid bubbleSort(std::vector<int>& arr) {\n    int n = arr.size();\n    for (int i = 0; i < n; i++) {\n        for (int j = 0; j < n - i - 1; j++) {\n            if (arr[j] > arr[j + 1]) {\n                std::swap(arr[j], arr[j + 1]);\n            }\n        }\n    }\n}\n\nint main() {\n    std::vector<int> arr = {64, 34, 25, 12, 22, 11, 90};\n    std::cout << "Before: ";\n    for(int x : arr) std::cout << x << " ";\n    std::cout << "\\nAfter:  ";\n    bubbleSort(arr);\n    for(int x : arr) std::cout << x << " ";\n    std::cout << std::endl;\n    return 0;\n}\n',
+    recursion: '#include <iostream>\n\nint factorial(int n) {\n    if (n == 0) return 1;\n    return n * factorial(n-1);\n}\n\nint main() {\n    std::cout << "5! = " << factorial(5) << std::endl;\n    return 0;\n}\n',
+    classes: '#include <iostream>\n#include <string>\n\nclass Animal {\nprotected:\n    std::string name;\npublic:\n    Animal(std::string n) : name(n) {}\n    virtual void speak() = 0;\n};\n\nclass Dog : public Animal {\npublic:\n    Dog(std::string n) : Animal(n) {}\n    void speak() override {\n        std::cout << name << " says Woof!" << std::endl;\n    }\n};\n\nint main() {\n    Dog rex("Rex");\n    rex.speak();\n    return 0;\n}\n'
+  },
+  java: {
+    hello: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}\n',
+    fibonacci: 'public class Main {\n    public static int fibonacci(int n) {\n        if (n <= 0) return 0;\n        if (n == 1) return 1;\n        return fibonacci(n-1) + fibonacci(n-2);\n    }\n    public static void main(String[] args) {\n        System.out.println(fibonacci(10));\n    }\n}\n',
+    sorting: 'import java.util.Arrays;\n\npublic class Main {\n    public static void bubbleSort(int[] arr) {\n        int n = arr.length;\n        for (int i = 0; i < n; i++) {\n            for (int j = 0; j < n - i - 1; j++) {\n                if (arr[j] > arr[j + 1]) {\n                    int temp = arr[j];\n                    arr[j] = arr[j + 1];\n                    arr[j + 1] = temp;\n                }\n            }\n        }\n    }\n    public static void main(String[] args) {\n        int[] arr = {64, 34, 25, 12, 22, 11, 90};\n        System.out.print("Before: ");\n        for(int x : arr) System.out.print(x + " ");\n        System.out.println();\n        bubbleSort(arr);\n        System.out.print("After:  ");\n        for(int x : arr) System.out.print(x + " ");\n        System.out.println();\n    }\n}\n',
+    recursion: 'public class Main {\n    public static int factorial(int n) {\n        if (n == 0) return 1;\n        return n * factorial(n-1);\n    }\n    public static void main(String[] args) {\n        System.out.println("5! = " + factorial(5));\n    }\n}\n',
+    classes: 'class Animal {\n    protected String name;\n    public Animal(String name) {\n        this.name = name;\n    }\n    public void speak() {}\n}\n\nclass Dog extends Animal {\n    public Dog(String name) {\n        super(name);\n    }\n    @Override\n    public void speak() {\n        System.out.println(name + " says Woof!");\n    }\n}\n\npublic class Main {\n    public static void main(String[] args) {\n        Dog rex = new Dog("Rex");\n        rex.speak();\n    }\n}\n'
+  }
+};
+
 // ── Progressive questions per language ───────────────────────────────────
 var QUESTIONS = {
   python: [
