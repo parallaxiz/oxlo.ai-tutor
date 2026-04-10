@@ -1055,6 +1055,16 @@
   <!-- EDITOR -->
   <div class="editor-area" id="editor-area">
     <div id="monaco-container"></div>
+    <div id="ai-guide-box"
+      style="display:none; position:absolute; bottom:20px; right:30px; width:340px; padding:16px; border-radius:12px; background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.5); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); color:#e8e8f0; font-size:0.78rem; z-index:100; box-shadow:0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1); line-height:1.5;">
+      <div
+        style="display:flex; align-items:center; gap:8px; margin-bottom:8px; border-bottom:1px solid rgba(124,58,237,0.3); padding-bottom:6px;">
+        <span style="font-size:1rem;">✨</span>
+        <b style="font-family:'Syne',sans-serif; color:#c084fc; font-size:0.85rem; letter-spacing:0.05em;">AI Line
+          Guide</b>
+      </div>
+      <div id="ai-guide-content" style="max-height:150px; overflow-y:auto;">Listening for changes...</div>
+    </div>
   </div>
 
   <!-- TERMINAL -->
@@ -1320,6 +1330,15 @@
       var qs = getQuestionsForCurrent();
       var idx = getIndex();
       if (idx < qs.length) return false;
+
+      if (currentLevel === 'advanced') {
+        // Prevent auto-advancing, show pop-up instead
+        if (!document.getElementById('endless-modal')) {
+          onAdvancedComplete();
+        }
+        return false;
+      }
+
       var curPos = LEVEL_ORDER.indexOf(currentLevel);
       if (curPos === -1) curPos = 0;
       if (curPos < LEVEL_ORDER.length - 1) {
@@ -1331,6 +1350,109 @@
       setLevel('generated');
       setIndex(0);
       return true;
+    }
+
+    function onAdvancedComplete() {
+      const modal = document.createElement('div');
+      modal.id = 'endless-modal';
+      modal.style = "position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:9999;";
+      modal.innerHTML = `
+          <div style="background:#161b22; padding:40px; border-radius:24px; border:1px solid #7c3aed; text-align:center; max-width:400px; box-shadow:0 0 40px rgba(124,58,237,0.2);">
+              <h2 style="font-family:'Syne';font-size:1.8rem;margin-bottom:10px;">Level Mastered! ⚡</h2>
+              <p style="color:#8b949e; margin-bottom:24px; line-height:1.5;">You've cleared the advanced path. Ready for the infinite grind?</p>
+              <button class="run-btn" style="margin:0 auto; padding:10px 20px; font-size:1rem;" onclick="startEndless(this.parentElement.parentElement)">Enter Endless Mode</button>
+              <button style="background:none; color:#777; border:none; margin-top:16px; cursor:pointer; width:100%; transition:color 0.2s;" onmouseover="this.style.color='#ccc'" onmouseout="this.style.color='#777'" onclick="goHome()">Quit to Home</button>
+          </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function startEndless(modalElement) {
+      window.difficulty_multiplier = 5; // Start at a high level
+      modalElement.remove();
+      setLevel('generated');
+      setIndex(0);
+      renderQuestions();
+      fetchEndlessChallenge();
+    }
+
+    async function fetchEndlessChallenge() {
+      const aiMessages = document.getElementById('ai-messages');
+      const loadingId = 'msg-' + Date.now();
+
+      var wrap = document.createElement('div');
+      wrap.className = 'msg msg-ai';
+      wrap.id = loadingId;
+      wrap.innerHTML = '<div class="bubble">🧠 Verified by n8n: Synthesizing a new challenge... <div class="dots" style="display:inline-block"><span></span><span></span><span></span></div></div>';
+      aiMessages.appendChild(wrap);
+      aiMessages.scrollTop = aiMessages.scrollHeight;
+
+      try {
+        const response = await fetch("http://localhost:5678/webhook-test/generate-endless-challenge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            difficulty: window.difficulty_multiplier || 1,
+            language: currentLang
+          })
+        });
+
+        const data = await response.json();
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.remove();
+
+        // 1. Display ONLY the question text (with the fancy border style)
+        var wrap = document.createElement('div');
+        wrap.className = 'msg msg-ai';
+        wrap.innerHTML = `
+              <div class="msg-label ai">Codexa AI</div>
+              <div class="bubble" style="border-left: 3px solid #7c3aed; padding-left: 12px;">
+                  <b style="color: #a78bfa;">Endless Challenge:</b><br>${data.question}
+              </div>`;
+        aiMessages.appendChild(wrap);
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+
+        // 2. Automatically load the boilerplate into the editor
+        if (window.editor && data.boilerplate) {
+          window.editor.setValue(data.boilerplate);
+        }
+
+        // 3. Store test cases globally so the 'Run' button can check them
+        window.current_test_cases = data.test_cases;
+
+        // 4. Overwrite the ugly placeholder text in the sidebar UI
+        if (currentLevel === 'generated') {
+          var qs = getQuestionsForCurrent();
+          var idx = getIndex();
+          if (qs[idx]) {
+            qs[idx].prompt = "⚡ n8n Challenge:\\n" + data.question;
+            qs[idx].tests = data.test_cases || [];
+          }
+          // Force the UI to repaint the left sidebar with this new text
+          var listContainer = document.getElementById('all-questions-list');
+          if (listContainer) {
+            var displayCurrent = Math.min(idx + 1, Math.max(qs.length, 1));
+            listContainer.innerHTML = '';
+            for (var i = 0; i < displayCurrent; i++) {
+              var div = document.createElement('div');
+              div.className = 'question-item' + (i === idx ? ' current' : (i < idx ? ' completed' : ' locked'));
+              var status = i === idx ? '▶ ' : (i < idx ? '✓ ' : '🔒 ');
+              div.innerText = (i + 1) + '. ' + status + qs[i].prompt;
+              listContainer.appendChild(div);
+            }
+          }
+          var infoContainer = document.getElementById('info-container');
+          if (infoContainer && qs[idx]) {
+            infoContainer.innerText = qs[idx].prompt;
+          }
+        }
+
+      } catch (error) {
+        console.error("n8n Connection Error:", error);
+        if (document.getElementById(loadingId)) {
+          document.getElementById(loadingId).innerHTML = '<div class="bubble" style="border-color:#ef4444;">⚠️ Connection to n8n Webhook Engine lost. Make sure n8n is running with CORS enabled!</div>';
+        }
+      }
     }
 
     function renderQuestions() {
@@ -1459,6 +1581,10 @@
         }
       });
 
+      // --- STATE VARIABLES ---
+      let lastValidOutput = "[Program executed successfully]";
+      let shadowExecutionTimer;
+
       editor = monaco.editor.create(document.getElementById('monaco-container'), {
         value: "",
         language: MONO_LANG[currentLang],
@@ -1489,7 +1615,89 @@
       if (activeLang) { activeLang.classList.add('active'); }
 
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runCode);
+
+      // --- ATTACH TO MONACO ---
+      window.editor.onDidChangeModelContent(() => {
+        clearTimeout(shadowExecutionTimer);
+        
+        // Pulse every 400ms to check for runnable code
+        shadowExecutionTimer = setTimeout(reactiveRun, 400);
+      });
+
       renderQuestions();
+
+      if (currentLevel === 'generated') {
+        // If we loaded the page directly into endless mode, instantly trigger n8n!
+        fetchEndlessChallenge();
+      }
+
+      // ── Real-Time AI Hook ──────────────────────────────────────────────────
+      let aiGuideTimeout = null;
+
+      function handleEditorChange() {
+        const position = editor.getPosition();
+        if (!position) return;
+
+        const currentLine = position.lineNumber;
+        const code = editor.getValue();
+
+        clearTimeout(aiGuideTimeout);
+
+        if (!code.trim()) {
+          document.getElementById('ai-guide-box').style.display = 'none';
+          return;
+        }
+
+        // Debounce typing logic
+        aiGuideTimeout = setTimeout(async function () {
+          const guideBox = document.getElementById('ai-guide-box');
+          const guideContent = document.getElementById('ai-guide-content');
+
+          guideBox.style.display = 'block';
+          guideContent.innerHTML = '<div style="display:flex; gap:6px; align-items:center; color:rgba(232,232,240,0.5);">Analyzing context<div class="dots" style="display:inline-block"><span></span><span></span><span></span></div></div>';
+
+          try {
+            var qs = getQuestionsForCurrent();
+            var idx = getIndex();
+            var currentQuestionText = qs[idx] && qs[idx].prompt ? qs[idx].prompt : String(qs[idx]);
+
+            const res = await fetch('http://localhost:5678/webhook/line-guide', {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                code: code,
+                cursorLine: currentLine,
+                question: currentQuestionText,
+                language: currentLang,
+                lineText: editor.getModel().getLineContent(currentLine)
+              })
+            });
+            const json = await res.json();
+            if (json && (json.guide || json.hint)) {
+              let text = json.guide || json.hint;
+              // Clean markdown blocks
+              text = text.replace(/```(json)?([\s\S]*?)```/g, '$2').trim();
+              // Attempt to parse stringified object
+              try {
+                  const inner = JSON.parse(text);
+                  if (inner.hint) text = inner.hint;
+                  else if (inner.guide) text = inner.guide;
+              } catch(e) {}
+              
+              guideContent.innerHTML = text.replace(/\n/g, '<br>');
+            } else {
+              guideContent.innerHTML = "<i style='color:rgba(232,232,240,0.5)'>Looking good! Keep going.</i>";
+            }
+          }
+          catch (e) {
+            guideContent.innerHTML = "<span style='color:#f87171;'>Warning: n8n offline or uncontactable. Run the engine!</span>";
+          }
+
+        }, 500);
+      }
+
+      editor.onDidChangeModelContent(handleEditorChange);
+      editor.onDidChangeCursorPosition(handleEditorChange);
     });
 
     // ── Sidebar panel switching ─────────────────────────────────────────────
@@ -1546,49 +1754,100 @@
       termLine('$ codexa test ' + document.getElementById('tab-filename').textContent, 't-prompt');
 
       if (!code.trim()) {
-         termLine('Error: Editor is empty. Please write some code to submit.', 't-err');
-         return;
+        termLine('Error: Editor is empty. Please write some code to submit.', 't-err');
+        return;
       }
 
       termLine('Running tests against hidden cases...', 't-dim');
-      
+
       var qs = getQuestionsForCurrent();
       var idx = getIndex();
       var tc = qs[idx] && qs[idx].tests && qs[idx].tests.length ? qs[idx].tests[0] : null;
 
-      setTimeout(function() {
-         if (tc) {
-            termLine('Test Case 1: Passed (' + (Math.random()*20).toFixed(1) + 'ms)', 't-success');
-            termLine('Test Case 2: Passed (' + (Math.random()*15+5).toFixed(1) + 'ms)', 't-success');
-            termLine('Test Case 3: Passed (' + (Math.random()*10+5).toFixed(1) + 'ms)', 't-success');
-         } else {
-            termLine('Test Case 1: Passed (AI Evaluated)', 't-success');
-         }
+      setTimeout(function () {
+        if (tc) {
+          termLine('Test Case 1: Passed (' + (Math.random() * 20).toFixed(1) + 'ms)', 't-success');
+          termLine('Test Case 2: Passed (' + (Math.random() * 15 + 5).toFixed(1) + 'ms)', 't-success');
+          termLine('Test Case 3: Passed (' + (Math.random() * 10 + 5).toFixed(1) + 'ms)', 't-success');
+        } else {
+          termLine('Test Case 1: Passed (AI Evaluated)', 't-success');
+        }
 
-         setTimeout(function() {
-            termLine('\n✨ All Tests Passed! Excellent work.', 't-success');
-            
-            if(window.confetti) {
-                confetti({
-                  particleCount: 150,
-                  spread: 80,
-                  origin: { y: 0.6 },
-                  colors: ['#7c3aed', '#34d399', '#38bdf8', '#db2777']
-                });
+        setTimeout(function () {
+          termLine('\n✨ All Tests Passed! Excellent work.', 't-success');
+
+          if (window.confetti) {
+            confetti({
+              particleCount: 150,
+              spread: 80,
+              origin: { y: 0.6 },
+              colors: ['#7c3aed', '#34d399', '#38bdf8', '#db2777']
+            });
+          }
+
+          setTimeout(function () {
+            var i = getIndex();
+            setIndex(i + 1);
+            tryAdvanceLevelIfComplete();
+            renderQuestions();
+            editor.setValue("");
+            clearTerminal();
+            termLine('$ Loaded next question.', 't-prompt');
+
+            if (currentLevel === 'generated') {
+              // Increase difficulty and endlessly fetch the next challenge!
+              window.difficulty_multiplier = (window.difficulty_multiplier || 1) + 1;
+              fetchEndlessChallenge();
             }
-
-            setTimeout(function() {
-                var i = getIndex();
-                setIndex(i + 1);
-                tryAdvanceLevelIfComplete();
-                renderQuestions();
-                editor.setValue("");
-                clearTerminal();
-                termLine('$ Loaded next question.', 't-prompt');
-            }, 3000);
-
-         }, 500);
+          }, 3000);
+        }, 500);
       }, 700);
+    }
+
+    // ── Reactive Shadow-State Runner ──────────────────────────────────────────
+    async function reactiveRun() {
+      const code = window.editor.getValue();
+      const currentLang = urlParams.get('lang') || 'python';
+
+      // We use a try-catch for JS, or a simulated runner for others
+      if (currentLang === 'javascript') {
+        try {
+          let output = "";
+          const customConsole = {
+            log: (...args) => { output += args.join(" ") + "\\n"; }
+          };
+          
+          // Execute in shadow function
+          new Function('console', code)(customConsole);
+          
+          // IF SUCCESSFUL: Update UI
+          updateTerminal(output);
+          lastValidOutput = output;
+        } catch (e) {
+          // IF ERROR: Silent Fail. Show nothing new, keep old good output.
+            updateTerminal(lastValidOutput);
+            console.log("Shadow execution suppressed error.");
+        }
+      } else {
+        // For Python/C++, you'd call your simulation logic
+        // Only update if the simulation returns a non-error state
+          const simResult = simulate(code, currentLang);
+          if (simResult.length > 0 && !simResult.some(r => r.t === 't-err')) {
+            let textOutput = simResult.map(r => r.v).join("\n");
+            updateTerminal(textOutput);
+            lastValidOutput = textOutput;
+          } else {
+            updateTerminal(lastValidOutput);
+          }
+      }
+    }
+
+    function updateTerminal(text) {
+      const body = document.getElementById('term-body');
+      // Always show something, even if text is empty
+      const displayText = text && text.trim() ? text : lastValidOutput || '[Program executed successfully]';
+      body.innerHTML = `<div class="t-success">${displayText}</div>`;
+      console.log('updateTerminal:', displayText);
     }
 
     // ── Run code ──────────────────────────────────────────────────────────────
@@ -1628,6 +1887,14 @@
 
     function simulate(code, lang) {
       var out = [];
+      if (!code.trim()) {
+        out.push({ v: 'SyntaxError: unexpected end of input', t: 't-err' });
+        return out;
+      }
+      if (/error|Error/.test(code)) {
+        out.push({ v: 'NameError: name \'error\' is not defined', t: 't-err' });
+        return out;
+      }
       if (/hello|Hello/.test(code) && !/fibonacci|fibonacci/.test(code)) {
         out.push({ v: 'Hello, World!', t: '' });
         out.push({ v: 'Welcome to Codexa!', t: '' });
